@@ -1,0 +1,23 @@
+{
+    "files.associations": {
+        "random": "cpp",
+        "fstream": "cpp",
+        "typeinfo": "cpp",
+        "iosfwd": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "system_error": "cpp",
+        "condition_variable": "cpp",
+        "functional": "cpp",
+        "sstream": "cpp",
+        "tuple": "cpp",
+        "cmath": "cpp",
+        "memory_resource": "cpp",
+        "array": "cpp",
+        "string_view": "cpp"
+    }
+}
