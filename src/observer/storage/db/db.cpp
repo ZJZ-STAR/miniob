@@ -185,9 +185,9 @@ RC Db::drop_table(const char *table_name)
 
   auto iter = opened_tables_.find(table_name);
   if (iter == opened_tables_.end()) {
-    // 表不存在，但为了实现幂等性，返回SUCCESS
-    LOG_INFO("Table %s does not exist, but treating as success for idempotence", table_name);
-    return RC::SUCCESS;
+    // 表不存在，返回错误
+    LOG_WARN("Table %s does not exist", table_name);
+    return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
   Table *table = iter->second;
