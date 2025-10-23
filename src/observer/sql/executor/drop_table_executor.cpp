@@ -65,9 +65,8 @@ RC DropTableExecutor::execute(SQLStageEvent *sql_event)
     LOG_INFO("Successfully dropped table %s", table_name);
     return RC::SUCCESS;
   } else {
-    // 所有错误情况统一返回INTERNAL错误
+    // 所有错误情况统一返回INTERNAL错误，不设置state_string
     sql_result->set_return_code(RC::INTERNAL);
-    sql_result->set_state_string("Drop table failed");
     LOG_WARN("Failed to drop table %s: rc=%s", table_name, strrc(rc));
     return RC::INTERNAL;
   }
