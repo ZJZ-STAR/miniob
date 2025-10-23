@@ -59,10 +59,15 @@ RC DropTableExecutor::execute(SQLStageEvent *sql_event)
   // 执行删除表操作
   RC rc = db->drop_table(table_name);
   
-  // 根据返回的错误码设置适当的错误信息
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("Failed to drop table %s: rc=%d", table_name, rc);
-    sql_result->set_return_code(rc);
+  // 设置返回码和状态信息
+  sql_result->set_return_code(rc);
+  
+  if (rc == RC::SUCCESS) {
+    // 成功时不需要设置错误消息
+    LOG_INFO("Successfully dropped table %s", table_name);
+  } else {
+    // 根据返回的错误码设置适当的错误信息
+    LOG_WARN("Failed to drop table %s: rc=%s", table_name, strrc(rc));
     
     switch (rc) {
       case RC::SCHEMA_TABLE_NOT_EXIST:
