@@ -59,32 +59,16 @@ RC DropTableExecutor::execute(SQLStageEvent *sql_event)
   // 执行删除表操作
   RC rc = db->drop_table(table_name);
   
-  // 设置返回码和状态信息
-  sql_result->set_return_code(rc);
-  
   if (rc == RC::SUCCESS) {
-    // 成功时不需要设置错误消息
+    // 成功时返回SUCCESS
+    sql_result->set_return_code(RC::SUCCESS);
     LOG_INFO("Successfully dropped table %s", table_name);
+    return RC::SUCCESS;
   } else {
-    // 根据返回的错误码设置适当的错误信息
+    // 所有错误情况统一返回FAILURE
+    sql_result->set_return_code(RC::FAILURE);
+    sql_result->set_state_string("Drop table failed");
     LOG_WARN("Failed to drop table %s: rc=%s", table_name, strrc(rc));
-    
-    switch (rc) {
-      case RC::SCHEMA_TABLE_NOT_EXIST:
-        sql_result->set_state_string("Table not exists");
-        break;
-      case RC::INVALID_ARGUMENT:
-        sql_result->set_state_string("Invalid table name");
-        break;
-      case RC::FILE_REMOVE:
-      case RC::IOERR_OPEN:
-        sql_result->set_state_string("File operation failed");
-        break;
-      default:
-        sql_result->set_state_string("Drop table failed");
-        break;
-    }
+    return RC::FAILURE;
   }
-
-  return rc;
 }
