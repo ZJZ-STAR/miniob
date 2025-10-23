@@ -13,7 +13,10 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <limits.h>
+#include <cerrno>
+#include <cstdio>
 #include <string.h>
+#include <vector>
 
 #include "common/defs.h"
 #include "common/lang/string.h"
@@ -122,6 +125,88 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   }
 
   LOG_INFO("Successfully create table %s:%s", base_dir, name);
+  return rc;
+}
+
+RC Table::drop()
+{
+  if (db_ == nullptr) {
+    LOG_ERROR("Table %s has no database context when dropping", table_meta_.name());
+    return RC::INTERNAL;
+  }
+
+  const char *table_name = table_meta_.name();
+  string       base_dir  = db_->path();
+
+  vector<string> index_files;
+  index_files.reserve(table_meta_.index_num());
+  for (int i = 0; i < table_meta_.index_num(); i++) {
+    const IndexMeta *index_meta = table_meta_.index(i);
+    if (index_meta != nullptr) {
+      index_files.emplace_back(table_index_file(base_dir.c_str(), table_name, index_meta->name()));
+    }
+  }
+
+  string data_file = table_data_file(base_dir.c_str(), table_name);
+  string lob_file  = table_lob_file(base_dir.c_str(), table_name);
+  string meta_file = table_meta_file(base_dir.c_str(), table_name);
+
+  RC rc = RC::SUCCESS;
+
+  if (engine_) {
+    RC sync_rc = engine_->sync();
+    if (OB_FAIL(sync_rc) && sync_rc != RC::UNIMPLEMENTED) {
+      LOG_WARN("Failed to sync table before drop. table=%s, rc=%s", table_name, strrc(sync_rc));
+      rc = sync_rc;
+    }
+    engine_.reset();
+  }
+
+  if (lob_handler_ != nullptr) {
+    delete lob_handler_;
+    lob_handler_ = nullptr;
+  }
+
+  auto remove_file = [&](const string &file_path, bool warn_on_missing, const char *label) -> RC {
+    if (file_path.empty()) {
+      return RC::SUCCESS;
+    }
+
+    if (::remove(file_path.c_str()) != 0) {
+      if (errno == ENOENT) {
+        if (warn_on_missing) {
+          LOG_WARN("%s file not found while dropping table %s. file=%s", label, table_name, file_path.c_str());
+        }
+        return RC::SUCCESS;
+      }
+
+      LOG_WARN("Failed to remove %s file for table %s. file=%s, errmsg=%s",
+          label, table_name, file_path.c_str(), strerror(errno));
+      return RC::FILE_REMOVE;
+    }
+    return RC::SUCCESS;
+  };
+
+  auto merge_rc = [&](RC current, RC latest) {
+    if (current != RC::SUCCESS) {
+      return current;
+    }
+    return latest;
+  };
+
+  rc = merge_rc(rc, remove_file(data_file, false, "data"));
+  for (const string &index_file : index_files) {
+    rc = merge_rc(rc, remove_file(index_file, false, "index"));
+  }
+  rc = merge_rc(rc, remove_file(lob_file, false, "lob"));
+  rc = merge_rc(rc, remove_file(meta_file, true, "meta"));
+
+  if (rc == RC::SUCCESS) {
+    LOG_INFO("Successfully dropped table %s", table_name);
+  } else {
+    LOG_WARN("Table %s dropped with warnings. rc=%s", table_name, strrc(rc));
+  }
+
   return rc;
 }
 

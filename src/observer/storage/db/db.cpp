@@ -176,6 +176,34 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   return RC::SUCCESS;
 }
 
+RC Db::drop_table(const char *table_name)
+{
+  if (common::is_blank(table_name)) {
+    LOG_WARN("Invalid table name when dropping");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  auto iter = opened_tables_.find(table_name);
+  if (iter == opened_tables_.end()) {
+    LOG_WARN("Table %s does not exist", table_name);
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+
+  Table *table = iter->second;
+  RC     rc    = table->drop();
+  if (OB_FAIL(rc)) {
+    LOG_WARN("Drop table encountered warnings. table=%s, rc=%s", table_name, strrc(rc));
+  }
+
+  delete table;
+  opened_tables_.erase(iter);
+
+  if (OB_SUCC(rc)) {
+    LOG_INFO("Drop table success. table name=%s", table_name);
+  }
+  return rc;
+}
+
 Table *Db::find_table(const char *table_name) const
 {
   unordered_map<string, Table *>::const_iterator iter = opened_tables_.find(table_name);
