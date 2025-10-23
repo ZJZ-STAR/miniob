@@ -167,12 +167,12 @@ RC Table::drop()
     lob_handler_ = nullptr;
   }
 
-  // 从buffer pool manager中移除数据文件
+  // 从buffer pool manager中关闭数据文件
   BufferPoolManager &bpm = db_->buffer_pool_manager();
-  RC remove_rc = bpm.remove_file(data_file.c_str());
-  if (remove_rc != RC::SUCCESS && remove_rc != RC::FILE_NOT_EXIST) {
-    LOG_WARN("Failed to remove data file from buffer pool. table=%s, file=%s, rc=%s", 
-             table_name, data_file.c_str(), strrc(remove_rc));
+  RC close_rc = bpm.close_file(data_file.c_str());
+  if (close_rc != RC::SUCCESS) {
+    LOG_WARN("Failed to close data file from buffer pool. table=%s, file=%s, rc=%s", 
+             table_name, data_file.c_str(), strrc(close_rc));
   }
 
   auto remove_file = [&](const string &file_path, bool warn_on_missing, const char *label) -> RC {
