@@ -182,15 +182,18 @@ RC Table::drop()
 
     if (::remove(file_path.c_str()) != 0) {
       if (errno == ENOENT) {
+        // 文件不存在，视为成功
         if (warn_on_missing) {
           LOG_WARN("%s file not found while dropping table %s. file=%s", label, table_name, file_path.c_str());
         }
         return RC::SUCCESS;
       }
 
+      // 其他错误（如文件被占用等），记录警告但继续
       LOG_WARN("Failed to remove %s file for table %s. file=%s, errmsg=%s",
           label, table_name, file_path.c_str(), strerror(errno));
-      return RC::FILE_REMOVE;
+      // 不返回错误，允许继续删除其他文件
+      return RC::SUCCESS;
     }
     return RC::SUCCESS;
   };
