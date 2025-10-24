@@ -105,10 +105,10 @@ RC DateType::to_string(const Value &val, string &result) const
 
 RC DateType::validate_date_string(const string &date_str) const
 {
-  // 使用正则表达式验证日期格式 YYYY-MM-DD
-  std::regex date_regex(R"(^\d{4}-\d{2}-\d{2}$)");
+  // 使用正则表达式验证日期格式 YYYY-MM-DD 或 YYYY-M-D（月份和日期可以是1-2位数字）
+  std::regex date_regex(R"(^\d{4}-\d{1,2}-\d{1,2}$)");
   if (!std::regex_match(date_str, date_regex)) {
-    LOG_WARN("Invalid date format: %s, expected YYYY-MM-DD", date_str.c_str());
+    LOG_WARN("Invalid date format: %s, expected YYYY-MM-DD or YYYY-M-D", date_str.c_str());
     return RC::INVALID_ARGUMENT;
   }
 
