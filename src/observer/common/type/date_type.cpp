@@ -90,6 +90,7 @@ RC DateType::set_value_from_str(Value &val, const string &data) const
   }
 
   val.set_int(days);
+  val.set_type(AttrType::DATES);  // 重要：设置类型为 DATES
   return RC::SUCCESS;
 }
 

@@ -48,6 +48,9 @@ int CharType::cast_cost(AttrType type)
   if (type == AttrType::CHARS) {
     return 0;
   }
+  if (type == AttrType::DATES) {
+    return 1;  // 支持从 CHARS 转换到 DATES，成本为 1
+  }
   return INT32_MAX;
 }
 

@@ -35,7 +35,7 @@ public:
       return 0;
     }
     if (type == AttrType::CHARS) {
-      return 1;  // 支持从 CHARS 转换到 DATE，成本为 1
+      return 2;  // DATE 转换到 CHARS 的成本为 2（避免进行字符串比较）
     }
     return INT32_MAX;
   }
