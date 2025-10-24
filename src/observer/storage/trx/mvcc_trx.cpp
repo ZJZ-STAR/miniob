@@ -172,6 +172,13 @@ RC MvccTrx::delete_record(Table *table, Record &record)
   return RC::SUCCESS;
 }
 
+RC MvccTrx::update_record(Table *table, Record &old_record, Record &new_record)
+{
+  // 对于 MVCC，update 操作就是 delete + insert
+  // 直接使用 table 的 update_record_with_trx，它会处理索引更新
+  return table->update_record_with_trx(old_record, new_record, this);
+}
+
 RC MvccTrx::visit_record(Table *table, Record &record, ReadWriteMode mode)
 {
   Field begin_field;

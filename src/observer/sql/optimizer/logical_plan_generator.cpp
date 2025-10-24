@@ -26,6 +26,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
+#include "sql/operator/update_logical_operator.h"
 
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
@@ -34,6 +35,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/insert_stmt.h"
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/stmt.h"
+#include "sql/stmt/update_stmt.h"
 
 #include "sql/expr/expression_iterator.h"
 
@@ -66,6 +68,12 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
       DeleteStmt *delete_stmt = static_cast<DeleteStmt *>(stmt);
 
       rc = create_plan(delete_stmt, logical_operator);
+    } break;
+
+    case StmtType::UPDATE: {
+      UpdateStmt *update_stmt = static_cast<UpdateStmt *>(stmt);
+
+      rc = create_plan(update_stmt, logical_operator);
     } break;
 
     case StmtType::EXPLAIN: {
@@ -355,5 +363,44 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   auto group_by_oper = make_unique<GroupByLogicalOperator>(std::move(group_by_expressions),
                                                            std::move(aggregate_expressions));
   logical_operator = std::move(group_by_oper);
+  return RC::SUCCESS;
+}
+
+RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<LogicalOperator> &logical_operator)
+{
+  Table *table = update_stmt->table();
+  const string &attribute_name = update_stmt->attribute_name();
+  const Value &value = update_stmt->value();
+  FilterStmt *filter_stmt = update_stmt->filter_stmt();
+
+  // 创建更新逻辑操作符
+  auto update_oper = make_unique<UpdateLogicalOperator>(table, attribute_name, value, filter_stmt);
+
+  // 创建表扫描操作符
+  auto table_get_oper = make_unique<TableGetLogicalOperator>(table, ReadWriteMode::READ_WRITE);
+
+  // 如果有过滤条件，需要添加谓词过滤
+  if (filter_stmt != nullptr && !filter_stmt->filter_units().empty()) {
+    // 创建谓词过滤操作符
+    unique_ptr<LogicalOperator> predicate_oper;
+    RC rc = create_plan(filter_stmt, predicate_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create predicate logical plan for update. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    // 只有当 predicate_oper 不为空时才添加过滤层
+    if (predicate_oper) {
+      predicate_oper->add_child(std::move(table_get_oper));
+      update_oper->add_child(std::move(predicate_oper));
+    } else {
+      update_oper->add_child(std::move(table_get_oper));
+    }
+  } else {
+    // 没有过滤条件，直接扫描整个表
+    update_oper->add_child(std::move(table_get_oper));
+  }
+
+  logical_operator = std::move(update_oper);
   return RC::SUCCESS;
 }

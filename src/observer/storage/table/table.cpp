@@ -347,6 +347,41 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   return RC::SUCCESS;
 }
 
+RC Table::make_record_from_update(const Record &old_record, const string &attribute_name, const Value &value, Record &new_record)
+{
+  RC rc = RC::SUCCESS;
+  
+  // 检查字段是否存在
+  const FieldMeta *field_meta = table_meta_.field(attribute_name.c_str());
+  if (nullptr == field_meta) {
+    LOG_WARN("no such field. table=%s, field=%s", table_meta_.name(), attribute_name.c_str());
+    return RC::SCHEMA_FIELD_NOT_EXIST;
+  }
+
+  // 检查字段类型是否匹配
+  if (field_meta->type() != value.attr_type()) {
+    LOG_WARN("type mismatch. table=%s, field=%s, field_type=%d, value_type=%d", 
+             table_meta_.name(), attribute_name.c_str(), field_meta->type(), value.attr_type());
+    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+
+  // 复制原始记录数据
+  int record_size = table_meta_.record_size();
+  char *record_data = (char *)malloc(record_size);
+  memcpy(record_data, old_record.data(), record_size);
+
+  // 更新指定字段的值
+  rc = set_value_to_record(record_data, value, field_meta);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to set value to record. table=%s, field=%s", table_meta_.name(), attribute_name.c_str());
+    free(record_data);
+    return rc;
+  }
+
+  new_record.set_data_owner(record_data, record_size);
+  return RC::SUCCESS;
+}
+
 RC Table::set_value_to_record(char *record_data, const Value &value, const FieldMeta *field)
 {
   size_t       copy_len = field->len();

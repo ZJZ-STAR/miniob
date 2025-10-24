@@ -103,6 +103,55 @@ RC HeapTableEngine::delete_record(const Record &record)
   return rc;
 }
 
+RC HeapTableEngine::update_record_with_trx(const Record &old_record, const Record &new_record, Trx *trx)
+{
+  RC rc = RC::SUCCESS;
+
+  // 1. 删除旧记录的索引项
+  rc = delete_entry_of_indexes(old_record.data(), old_record.rid(), false);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to delete index entries for old record. table=%s, rc=%s", 
+             table_meta_->name(), strrc(rc));
+    return rc;
+  }
+
+  // 2. 删除旧记录
+  rc = record_handler_->delete_record(&old_record.rid());
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to delete old record. table=%s, rc=%s", table_meta_->name(), strrc(rc));
+    // 尝试回滚索引删除
+    insert_entry_of_indexes(old_record.data(), old_record.rid());
+    return rc;
+  }
+
+  // 3. 插入新记录
+  Record new_record_copy = new_record;  // 需要可修改的副本
+  rc = record_handler_->insert_record(new_record_copy.data(), table_meta_->record_size(), &new_record_copy.rid());
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to insert new record. table=%s, rc=%s", table_meta_->name(), strrc(rc));
+    // 尝试回滚：重新插入旧记录
+    Record old_record_copy = old_record;
+    record_handler_->insert_record(old_record_copy.data(), table_meta_->record_size(), &old_record_copy.rid());
+    insert_entry_of_indexes(old_record.data(), old_record.rid());
+    return rc;
+  }
+
+  // 4. 插入新记录的索引项
+  rc = insert_entry_of_indexes(new_record_copy.data(), new_record_copy.rid());
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to insert index entries for new record. table=%s, rc=%s", 
+             table_meta_->name(), strrc(rc));
+    // 尝试回滚：删除新记录，恢复旧记录
+    record_handler_->delete_record(&new_record_copy.rid());
+    Record old_record_copy = old_record;
+    record_handler_->insert_record(old_record_copy.data(), table_meta_->record_size(), &old_record_copy.rid());
+    insert_entry_of_indexes(old_record.data(), old_record.rid());
+    return rc;
+  }
+
+  return RC::SUCCESS;
+}
+
 RC HeapTableEngine::get_record_scanner(RecordScanner *&scanner, Trx *trx, ReadWriteMode mode)
 {
   scanner = new HeapRecordScanner(table_, *data_buffer_pool_, trx, db_->log_handler(), mode, nullptr);

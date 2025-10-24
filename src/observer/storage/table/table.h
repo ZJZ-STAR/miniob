@@ -84,6 +84,16 @@ public:
   RC make_record(int value_num, const Value *values, Record &record);
 
   /**
+   * @brief 从现有记录创建更新后的记录
+   * @details 基于现有记录，更新指定字段的值，生成新记录
+   * @param old_record 原始记录
+   * @param attribute_name 要更新的字段名
+   * @param value 新的字段值
+   * @param new_record 生成的新记录
+   */
+  RC make_record_from_update(const Record &old_record, const string &attribute_name, const Value &value, Record &new_record);
+
+  /**
    * @brief 在当前的表中插入一条记录
    * @details 在表文件和索引中插入关联数据。这里只管在表中插入数据，不关心事务相关操作。
    * @param record[in/out] 传入的数据包含具体的数据，插入成功会通过此字段返回RID

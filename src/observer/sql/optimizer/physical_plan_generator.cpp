@@ -42,6 +42,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/hash_group_by_physical_operator.h"
 #include "sql/operator/scalar_group_by_physical_operator.h"
 #include "sql/operator/table_scan_vec_physical_operator.h"
+#include "sql/operator/update_logical_operator.h"
+#include "sql/operator/update_physical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 
 using namespace std;
@@ -73,6 +75,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::DELETE: {
       return create_plan(static_cast<DeleteLogicalOperator &>(logical_operator), oper, session);
+    } break;
+
+    case LogicalOperatorType::UPDATE: {
+      return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper, session);
     } break;
 
     case LogicalOperatorType::EXPLAIN: {
@@ -468,4 +474,30 @@ RC PhysicalPlanGenerator::create_vec_plan(ExplainLogicalOperator &explain_oper, 
 
   oper = std::move(explain_physical_oper);
   return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session* session)
+{
+  Table *table = logical_oper.table();
+  const string &attribute_name = logical_oper.attribute_name();
+  const Value &value = logical_oper.value();
+
+  // 创建更新物理操作符
+  auto update_physical_oper = make_unique<UpdatePhysicalOperator>(table, attribute_name, value);
+
+  // 处理子操作符
+  vector<unique_ptr<LogicalOperator>> &child_opers = logical_oper.children();
+  for (unique_ptr<LogicalOperator> &child_oper : child_opers) {
+    unique_ptr<PhysicalOperator> child_physical_oper;
+    RC rc = create(*child_oper, child_physical_oper, session);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create child physical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    update_physical_oper->add_child(std::move(child_physical_oper));
+  }
+
+  oper = std::move(update_physical_oper);
+  return RC::SUCCESS;
 }

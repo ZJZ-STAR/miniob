@@ -34,6 +34,13 @@ RC VacuousTrx::insert_record(Table *table, Record &record) { return table->inser
 
 RC VacuousTrx::delete_record(Table *table, Record &record) { return table->delete_record(record); }
 
+RC VacuousTrx::update_record(Table *table, Record &old_record, Record &new_record)
+{
+  // 对于无事务的情况，我们需要先删除旧记录，再插入新记录
+  // 但更简单的方法是直接通过 table 的 update_record_with_trx
+  return table->update_record_with_trx(old_record, new_record, this);
+}
+
 RC VacuousTrx::visit_record(Table *table, Record &record, ReadWriteMode) { return RC::SUCCESS; }
 
 RC VacuousTrx::start_if_need() { return RC::SUCCESS; }
