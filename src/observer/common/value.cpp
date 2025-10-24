@@ -128,6 +128,10 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::DATES: {
+      value_.int_value_ = *(int *)data;
+      length_           = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -206,6 +210,9 @@ void Value::set_value(const Value &value)
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
+    case AttrType::DATES: {
+      set_int(value.get_int());
+    } break;
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -267,6 +274,9 @@ int Value::get_int() const
     case AttrType::BOOLEANS: {
       return (int)(value_.bool_value_);
     }
+    case AttrType::DATES: {
+      return value_.int_value_;
+    }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return 0;
@@ -294,6 +304,9 @@ float Value::get_float() const
     } break;
     case AttrType::BOOLEANS: {
       return float(value_.bool_value_);
+    } break;
+    case AttrType::DATES: {
+      return float(value_.int_value_);
     } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
@@ -341,6 +354,9 @@ bool Value::get_boolean() const
     } break;
     case AttrType::BOOLEANS: {
       return value_.bool_value_;
+    } break;
+    case AttrType::DATES: {
+      return value_.int_value_ != 0;
     } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);

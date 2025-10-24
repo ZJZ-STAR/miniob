@@ -89,6 +89,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         STRING_T
         FLOAT_T
         VECTOR_T
+        DATE_T
         HELP
         EXIT
         DOT //QUOTE
@@ -363,7 +364,12 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = $4;
+      // 对于固定长度的类型（INT、FLOAT、DATE），忽略用户指定的长度
+      if ($$->type == AttrType::INTS || $$->type == AttrType::FLOATS || $$->type == AttrType::DATES) {
+        $$->length = 4;
+      } else {
+        $$->length = $4;
+      }
     }
     | ID type
     {
@@ -381,6 +387,7 @@ type:
     | STRING_T { $$ = static_cast<int>(AttrType::CHARS); }
     | FLOAT_T  { $$ = static_cast<int>(AttrType::FLOATS); }
     | VECTOR_T { $$ = static_cast<int>(AttrType::VECTORS); }
+    | DATE_T   { $$ = static_cast<int>(AttrType::DATES); }
     ;
 primary_key:
     /* empty */

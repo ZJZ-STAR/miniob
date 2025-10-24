@@ -358,20 +358,27 @@ RC Table::make_record_from_update(const Record &old_record, const string &attrib
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
 
-  // 检查字段类型是否匹配
-  if (field_meta->type() != value.attr_type()) {
-    LOG_WARN("type mismatch. table=%s, field=%s, field_type=%d, value_type=%d", 
-             table_meta_.name(), attribute_name.c_str(), field_meta->type(), value.attr_type());
-    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-  }
-
   // 复制原始记录数据
   int record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
   memcpy(record_data, old_record.data(), record_size);
 
-  // 更新指定字段的值
-  rc = set_value_to_record(record_data, value, field_meta);
+  // 检查字段类型是否匹配，如果不匹配则尝试类型转换
+  if (field_meta->type() != value.attr_type()) {
+    Value real_value;
+    rc = Value::cast_to(value, field_meta->type(), real_value);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to cast value. table=%s, field=%s, value=%s", 
+               table_meta_.name(), attribute_name.c_str(), value.to_string().c_str());
+      free(record_data);
+      return rc;
+    }
+    rc = set_value_to_record(record_data, real_value, field_meta);
+  } else {
+    // 更新指定字段的值
+    rc = set_value_to_record(record_data, value, field_meta);
+  }
+  
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to set value to record. table=%s, field=%s", table_meta_.name(), attribute_name.c_str());
     free(record_data);
