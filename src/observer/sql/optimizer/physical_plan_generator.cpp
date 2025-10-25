@@ -15,6 +15,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "sql/expr/expression.h"
 #include "session/session.h"
+#include <climits>
+#include <cfloat>
 #include "sql/operator/aggregate_vec_physical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/calc_physical_operator.h"
@@ -175,14 +177,58 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   if (index != nullptr) {
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
 
-    const Value               &value           = value_expr->get_value();
-    IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(table,
-        index,
-        table_get_oper.read_write_mode(),
-        &value,
-        true /*left_inclusive*/,
-        &value,
-        true /*right_inclusive*/);
+    const Value &value = value_expr->get_value();
+    IndexScanPhysicalOperator *index_scan_oper = nullptr;
+    
+    // 检查比较操作符类型
+    ComparisonExpr *comparison_expr = nullptr;
+    for (auto &expr : predicates) {
+      if (expr->type() == ExprType::COMPARISON) {
+        comparison_expr = static_cast<ComparisonExpr *>(expr.get());
+        if (comparison_expr->comp() == EQUAL_TO || comparison_expr->comp() == NOT_EQUAL) {
+          break;
+        }
+      }
+    }
+    
+    if (comparison_expr && comparison_expr->comp() == NOT_EQUAL) {
+      // 对于 NOT_EQUAL 操作符，我们需要扫描整个索引，然后在过滤器中处理
+      // 设置一个很大的范围来扫描所有记录
+      Value min_value, max_value;
+      min_value.set_type(value.attr_type());
+      max_value.set_type(value.attr_type());
+      
+      if (value.attr_type() == AttrType::INTS) {
+        min_value.set_int(INT32_MIN);
+        max_value.set_int(INT32_MAX);
+      } else if (value.attr_type() == AttrType::FLOATS) {
+        min_value.set_float(-FLT_MAX);
+        max_value.set_float(FLT_MAX);
+      } else if (value.attr_type() == AttrType::CHARS) {
+        min_value.set_string("");
+        max_value.set_string("\xFF\xFF\xFF\xFF"); // 最大字符串
+      } else if (value.attr_type() == AttrType::DATES) {
+        min_value.set_int(19000101);  // 1900-01-01
+        max_value.set_int(21001231);  // 2100-12-31
+      }
+      
+      index_scan_oper = new IndexScanPhysicalOperator(table,
+          index,
+          table_get_oper.read_write_mode(),
+          &min_value,
+          true /*left_inclusive*/,
+          &max_value,
+          true /*right_inclusive*/);
+    } else {
+      // 对于 EQUAL_TO 操作符，使用精确匹配
+      index_scan_oper = new IndexScanPhysicalOperator(table,
+          index,
+          table_get_oper.read_write_mode(),
+          &value,
+          true /*left_inclusive*/,
+          &value,
+          true /*right_inclusive*/);
+    }
 
     // 如果有谓词，创建PredicatePhysicalOperator
     if (!predicates.empty()) {

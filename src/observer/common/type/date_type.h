@@ -15,7 +15,7 @@ See the Mulan PSL v2 for more details. */
 /**
  * @brief 日期类型
  * @ingroup DataType
- * @details 日期类型存储为从1970年1月1日开始的天数（int32_t）
+ * @details 日期类型存储为YYYYMMDD格式的整数（int32_t）
  * 支持范围：1900-01-01 到 2100-12-31
  */
 class DateType : public DataType
