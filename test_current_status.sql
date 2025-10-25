@@ -1,4 +1,4 @@
--- 最终验证测试
+-- 测试当前状态
 CREATE TABLE date_table(id int, u_date date);
 CREATE INDEX index_id on date_table(u_date);
 
