@@ -1,0 +1,150 @@
+### 2025-10-21 16:38:25.604
+-- Drop table 功能测试
+### 2025-10-21 16:38:25.616
+-- 1. 创建数据库
+### 2025-10-21 16:38:25.616
+CREATE DATABASE test_db;
+### 2025-10-21 16:38:25.617
+USE test_db;
+### 2025-10-21 16:38:25.617
+-- 2. 测试删除空表
+### 2025-10-21 16:38:25.618
+CREATE TABLE Drop_table_1(id int, t_name char(10));
+### 2025-10-21 16:38:25.659
+DROP TABLE Drop_table_1;
+### 2025-10-21 16:38:25.661
+-- 3. 测试删除非空表
+### 2025-10-21 16:38:25.661
+CREATE TABLE Drop_table_2(id int, t_name char(10));
+### 2025-10-21 16:38:25.698
+INSERT INTO Drop_table_2 VALUES (1,'OB');
+### 2025-10-21 16:38:25.701
+DROP TABLE Drop_table_2;
+### 2025-10-21 16:38:25.702
+-- 4. 测试删除表的准确性
+### 2025-10-21 16:38:25.703
+CREATE TABLE Drop_table_3(id int, t_name char(10));
+### 2025-10-21 16:38:25.730
+INSERT INTO Drop_table_3 VALUES (1,'OB');
+### 2025-10-21 16:38:25.732
+DROP TABLE Drop_table_3;
+### 2025-10-21 16:38:25.733
+-- 5. 测试删除不存在的表
+### 2025-10-21 16:38:25.733
+CREATE TABLE Drop_table_4(id int, t_name char(10));
+### 2025-10-21 16:38:25.776
+DROP TABLE Drop_table_4;
+### 2025-10-21 16:38:25.777
+DROP TABLE Drop_table_4_1;
+### 2025-10-21 16:38:25.779
+-- 6. 测试重新创建已删除的表
+### 2025-10-21 16:38:25.824
+DROP TABLE Drop_table_5;
+### 2025-10-21 16:38:25.826
+CREATE TABLE Drop_table_5(id int, t_name char(10));
+### 2025-10-21 16:38:25.826
+SELECT * FROM Drop_table_5;
+### 2025-10-21 16:38:25.829
+-- 7. 测试删除带索引的表
+### 2025-10-21 16:38:25.830
+CREATE TABLE Drop_table_6(id int, t_name char(10));
+### 2025-10-21 16:38:25.875
+CREATE INDEX index_id ON Drop_table_6(id);
+### 2025-10-21 16:38:25.931
+INSERT INTO Drop_table_6 VALUES (1,'OB');
+### 2025-10-21 16:38:25.934
+DROP TABLE Drop_table_6;
+### 2025-10-21 16:38:25.935
+-- 8. 验证表确实被删除
+### 2025-10-21 16:38:25.935
+SELECT * FROM Drop_table_6;
+### 2025-10-21 16:38:25.937
+-- 退出
+### 2025-10-21 16:39:16.767
+-- 手动测试 drop table 功能
+### 2025-10-21 16:39:16.799
+-- 测试1: 创建并删除空表
+### 2025-10-21 16:39:16.799
+CREATE TABLE test1(id int);
+### 2025-10-21 16:39:16.868
+DROP TABLE test1;
+### 2025-10-21 16:39:16.870
+-- 测试2: 创建并删除有数据的表
+### 2025-10-21 16:39:16.871
+CREATE TABLE test2(id int, name char(10));
+### 2025-10-21 16:39:16.944
+INSERT INTO test2 VALUES (1, 'hello');
+### 2025-10-21 16:39:16.947
+DROP TABLE test2;
+### 2025-10-21 16:39:16.949
+SELECT * FROM test2;
+### 2025-10-21 16:39:16.950
+-- 测试3: 删除不存在的表
+### 2025-10-21 16:39:16.953
+-- 测试4: 重新创建已删除的表
+### 2025-10-21 16:39:16.953
+CREATE TABLE test3(id int);
+### 2025-10-21 16:39:17.028
+DROP TABLE test3;
+### 2025-10-21 16:39:17.031
+CREATE TABLE test3(id int, name char(10));
+### 2025-10-21 16:39:17.032
+INSERT INTO test3 VALUES (1, 'world');
+### 2025-10-21 16:39:17.034
+SELECT * FROM test3;
+### 2025-10-21 16:39:17.035
+-- 测试5: 删除带索引的表
+### 2025-10-21 16:39:17.036
+CREATE TABLE test4(id int, name char(10));
+### 2025-10-21 16:39:17.115
+CREATE INDEX idx_id ON test4(id);
+### 2025-10-21 16:39:17.203
+INSERT INTO test4 VALUES (1, 'index');
+### 2025-10-21 16:39:17.208
+DROP TABLE test4;
+### 2025-10-21 16:39:17.209
+SELECT * FROM test4;
+### 2025-10-21 16:42:42.085
+CREATE TABLE test_table1(id int);
+### 2025-10-21 16:42:42.129
+DROP TABLE test_table1;
+### 2025-10-21 16:42:42.130
+CREATE TABLE test_table2(id int, name char(10));
+### 2025-10-21 16:42:42.131
+INSERT INTO test_table2 VALUES (1, 'test');
+### 2025-10-21 16:42:42.133
+DROP TABLE test_table2;
+### 2025-10-21 16:42:42.134
+DROP TABLE non_existent_table;
+### 2025-10-21 16:42:51.381
+-- 最终drop table功能测试
+### 2025-10-21 16:42:51.406
+-- 测试1: 创建表并验证
+### 2025-10-21 16:42:51.407
+CREATE TABLE test_drop(id int);
+### 2025-10-21 16:42:51.473
+-- 测试2: 删除表并验证
+### 2025-10-21 16:42:51.474
+DROP TABLE test_drop;
+### 2025-10-21 16:42:51.474
+SHOW TABLES;
+### 2025-10-21 16:42:51.475
+-- 测试3: 删除不存在的表（应该成功）
+### 2025-10-21 16:42:51.476
+DROP TABLE nonexistent_table;
+### 2025-10-21 16:42:51.477
+-- 测试4: 创建有数据的表
+### 2025-10-21 16:42:51.477
+CREATE TABLE test_data(id int, name char(10));
+### 2025-10-21 16:42:51.545
+INSERT INTO test_data VALUES (1, 'test');
+### 2025-10-21 16:42:51.549
+-- 测试5: 删除有数据的表
+### 2025-10-21 16:42:51.549
+DROP TABLE test_data;
+### 2025-10-21 16:42:51.551
+-- 测试6: 尝试查询已删除的表（应该失败）
+### 2025-10-21 16:42:51.551
+SELECT * FROM test_data;
+### 2025-10-21 16:42:51.552
+EXIT;

@@ -301,6 +301,8 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
   }
 
   Value tmp_value;
+  bool result = (conjunction_type_ == Type::AND); // AND: true, OR: false
+  
   for (const unique_ptr<Expression> &expr : children_) {
     rc = expr->get_value(tuple, tmp_value);
     if (rc != RC::SUCCESS) {
@@ -308,14 +310,25 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
       return rc;
     }
     bool bool_value = tmp_value.get_boolean();
-    if ((conjunction_type_ == Type::AND && !bool_value) || (conjunction_type_ == Type::OR && bool_value)) {
-      value.set_boolean(bool_value);
-      return rc;
+    
+    if (conjunction_type_ == Type::AND) {
+      // AND: 所有条件都必须为true
+      result = result && bool_value;
+      if (!result) {
+        // 一旦发现false，可以立即返回false
+        break;
+      }
+    } else {
+      // OR: 任何一个条件为true就返回true
+      result = result || bool_value;
+      if (result) {
+        // 一旦发现true，可以立即返回true
+        break;
+      }
     }
   }
 
-  bool default_value = (conjunction_type_ == Type::AND);
-  value.set_boolean(default_value);
+  value.set_boolean(result);
   return rc;
 }
 

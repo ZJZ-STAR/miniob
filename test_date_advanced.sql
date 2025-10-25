@@ -1,0 +1,26 @@
+-- 测试闰年
+INSERT INTO t1 VALUES (4, '2000-02-29', '2023-01-01');
+INSERT INTO t1 VALUES (5, '2004-02-29', '2023-01-01');
+
+-- 测试边界日期
+INSERT INTO t1 VALUES (6, '1900-01-01', '2100-12-31');
+
+-- 测试比较操作
+SELECT * FROM t1 WHERE birth_date > '1970-01-01';
+SELECT * FROM t1 WHERE birth_date < '1970-01-01';
+SELECT * FROM t1 WHERE birth_date = '2000-02-29';
+
+-- 测试UPDATE
+UPDATE t1 SET event_date = '2025-06-15' WHERE id = 1;
+SELECT * FROM t1 WHERE id = 1;
+
+-- 测试无效日期（应该失败）
+INSERT INTO t1 VALUES (7, '2023-02-30', '2023-01-01');
+INSERT INTO t1 VALUES (8, '2023-13-01', '2023-01-01');
+INSERT INTO t1 VALUES (9, '2100-02-29', '2023-01-01');
+
+-- 查看所有数据
+SELECT * FROM t1;
+
+exit
+

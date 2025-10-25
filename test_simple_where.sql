@@ -1,0 +1,8 @@
+CREATE TABLE t(id int, d date);
+INSERT INTO t VALUES (1, '2020-01-21');
+SELECT * FROM t;
+SELECT * FROM t WHERE d > '2020-01-20';
+SELECT * FROM t WHERE d > '2020-1-20';
+exit
+
+
