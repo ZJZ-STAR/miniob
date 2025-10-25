@@ -18,3 +18,6 @@ See the Mulan PSL v2 for more details. */
 UpdateLogicalOperator::UpdateLogicalOperator(Table *table, const string &attribute_name, const Value &value, FilterStmt *filter_stmt)
     : table_(table), attribute_name_(attribute_name), value_(value), filter_stmt_(filter_stmt)
 {}
+
+
+

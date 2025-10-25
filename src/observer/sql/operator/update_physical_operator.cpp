@@ -78,3 +78,6 @@ RC UpdatePhysicalOperator::close()
 {
   return RC::SUCCESS;
 }
+
+
+
