@@ -84,6 +84,19 @@ RC TableScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
 {
   RC    rc = RC::SUCCESS;
   Value value;
+  
+  // 如果只有一个谓词，直接评估
+  if (predicates_.size() == 1) {
+    rc = predicates_[0]->get_value(tuple, value);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+    result = value.get_boolean();
+    return rc;
+  }
+  
+  // 如果有多个谓词，使用AND逻辑：所有谓词都必须为true
+  result = true; // 初始化为true
   for (unique_ptr<Expression> &expr : predicates_) {
     rc = expr->get_value(tuple, value);
     if (rc != RC::SUCCESS) {
@@ -92,11 +105,12 @@ RC TableScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
 
     bool tmp_result = value.get_boolean();
     if (!tmp_result) {
-      result = false;
-      return rc;
+      result = false; // 任何一个谓词为false，整个结果为false
+      return rc; // 可以立即返回false
     }
   }
 
+  // 所有谓词都为true，结果为true
   result = true;
   return rc;
 }

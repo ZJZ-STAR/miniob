@@ -184,13 +184,38 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
         &value,
         true /*right_inclusive*/);
 
-    index_scan_oper->set_predicates(std::move(predicates));
-    oper = unique_ptr<PhysicalOperator>(index_scan_oper);
+    // 如果有谓词，创建PredicatePhysicalOperator
+    if (!predicates.empty()) {
+      unique_ptr<Expression> conjunction_expr;
+      if (predicates.size() == 1) {
+        conjunction_expr = std::move(predicates[0]);
+      } else {
+        conjunction_expr = make_unique<ConjunctionExpr>(ConjunctionExpr::Type::AND, predicates);
+      }
+      auto predicate_oper = new PredicatePhysicalOperator(std::move(conjunction_expr));
+      predicate_oper->add_child(unique_ptr<PhysicalOperator>(index_scan_oper));
+      oper = unique_ptr<PhysicalOperator>(predicate_oper);
+    } else {
+      oper = unique_ptr<PhysicalOperator>(index_scan_oper);
+    }
     LOG_TRACE("use index scan");
   } else {
     auto table_scan_oper = new TableScanPhysicalOperator(table, table_get_oper.read_write_mode());
-    table_scan_oper->set_predicates(std::move(predicates));
-    oper = unique_ptr<PhysicalOperator>(table_scan_oper);
+    
+    // 如果有谓词，创建PredicatePhysicalOperator
+    if (!predicates.empty()) {
+      unique_ptr<Expression> conjunction_expr;
+      if (predicates.size() == 1) {
+        conjunction_expr = std::move(predicates[0]);
+      } else {
+        conjunction_expr = make_unique<ConjunctionExpr>(ConjunctionExpr::Type::AND, predicates);
+      }
+      auto predicate_oper = new PredicatePhysicalOperator(std::move(conjunction_expr));
+      predicate_oper->add_child(unique_ptr<PhysicalOperator>(table_scan_oper));
+      oper = unique_ptr<PhysicalOperator>(predicate_oper);
+    } else {
+      oper = unique_ptr<PhysicalOperator>(table_scan_oper);
+    }
     LOG_TRACE("use table scan");
   }
 
