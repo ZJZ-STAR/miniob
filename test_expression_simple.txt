@@ -1,0 +1,8 @@
+create table test_expr(id int, col1 int, col2 int);
+insert into test_expr values (1, 10, 20);
+insert into test_expr values (2, 15, 25);
+insert into test_expr values (3, 20, 30);
+select col1 + col2 from test_expr;
+select col1 * col2 from test_expr;
+select id, col1, col2, col1 + col2 as sum from test_expr;
+drop table test_expr;
