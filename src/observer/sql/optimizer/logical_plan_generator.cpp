@@ -159,7 +159,26 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
 
 RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  RC                                  rc = RC::SUCCESS;
+  RC rc = RC::SUCCESS;
+  
+  // 优先使用表达式形式的过滤条件
+  const vector<unique_ptr<Expression>> &filter_conditions = filter_stmt->filter_conditions();
+  if (!filter_conditions.empty()) {
+    unique_ptr<Expression> final_condition;
+    if (filter_conditions.size() == 1) {
+      final_condition = filter_conditions[0]->copy();
+    } else {
+      vector<unique_ptr<Expression>> condition_list;
+      for (const auto &cond : filter_conditions) {
+        condition_list.emplace_back(cond->copy());
+      }
+      final_condition = make_unique<ConjunctionExpr>(ConjunctionExpr::Type::AND, condition_list);
+    }
+    logical_operator = make_unique<PredicateLogicalOperator>(std::move(final_condition));
+    return rc;
+  }
+  
+  // 否则使用旧的 FilterUnit 方式
   vector<unique_ptr<Expression>> cmp_exprs;
   const vector<FilterUnit *>    &filter_units = filter_stmt->filter_units();
   for (const FilterUnit *filter_unit : filter_units) {

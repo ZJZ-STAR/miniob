@@ -25,6 +25,7 @@ FilterStmt::~FilterStmt()
     delete unit;
   }
   filter_units_.clear();
+  filter_conditions_.clear();
 }
 
 RC FilterStmt::create(Db *db, Table *default_table, unordered_map<string, Table *> *tables,
@@ -128,5 +129,21 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, unordered_map<st
   filter_unit->set_comp(comp);
 
   // 检查两个类型是否能够比较
+  return rc;
+}
+
+RC FilterStmt::create(Db *db, const vector<unique_ptr<Expression>> &conditions, FilterStmt *&stmt)
+{
+  RC rc = RC::SUCCESS;
+  stmt  = nullptr;
+
+  FilterStmt *tmp_stmt = new FilterStmt();
+  
+  // 直接使用表达式作为过滤条件
+  for (const auto &condition : conditions) {
+    tmp_stmt->filter_conditions_.emplace_back(condition->copy());
+  }
+
+  stmt = tmp_stmt;
   return rc;
 }

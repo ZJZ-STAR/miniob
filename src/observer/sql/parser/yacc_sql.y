@@ -169,14 +169,15 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
-%type <condition_list>      where
-%type <condition_list>      condition_list
+%type <expression_list>     where
+%type <expression_list>     where_condition_list
 %type <cstring>             storage_format
 %type <key_list>            primary_key
 %type <key_list>            attr_list
 %type <relation_list>       rel_list
 %type <expression>          expression
 %type <expression>          aggregate_expression
+%type <expression>          where_condition
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
 %type <cstring>             fields_terminated_by
@@ -622,74 +623,35 @@ where:
     {
       $$ = nullptr;
     }
-    | WHERE condition_list {
+    | WHERE where_condition_list {
       $$ = $2;  
     }
     ;
-condition_list:
+where_condition_list:
     /* empty */
     {
       $$ = nullptr;
     }
-    | condition {
-      $$ = new vector<ConditionSqlNode>;
-      $$->emplace_back(*$1);
-      delete $1;
+    | where_condition
+    {
+      $$ = new vector<unique_ptr<Expression>>;
+      $$->emplace_back($1);
     }
-    | condition AND condition_list {
-      $$ = $3;
-      $$->emplace_back(*$1);
-      delete $1;
+    | where_condition AND where_condition_list
+    {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new vector<unique_ptr<Expression>>;
+      }
+      $$->emplace($$->begin(), $1);
     }
     ;
-condition:
-    rel_attr comp_op value
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | value comp_op value 
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | rel_attr comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | value comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+where_condition:
+    expression comp_op expression {
+      ComparisonExpr *comp_expr = new ComparisonExpr($2, $1, $3);
+      comp_expr->set_name(token_name(sql_string, &@$));
+      $$ = comp_expr;
     }
     ;
 

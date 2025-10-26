@@ -77,14 +77,18 @@ public:
 
 public:
   const vector<FilterUnit *> &filter_units() const { return filter_units_; }
+  const vector<unique_ptr<Expression>> &filter_conditions() const { return filter_conditions_; }
 
 public:
   static RC create(Db *db, Table *default_table, unordered_map<string, Table *> *tables,
       const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
 
+  static RC create(Db *db, const vector<unique_ptr<Expression>> &conditions, FilterStmt *&stmt);
+
   static RC create_filter_unit(Db *db, Table *default_table, unordered_map<string, Table *> *tables,
       const ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:
-  vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系
+  vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系（旧接口）
+  vector<unique_ptr<Expression>> filter_conditions_;  // 表达式形式的过滤条件（新接口）
 };

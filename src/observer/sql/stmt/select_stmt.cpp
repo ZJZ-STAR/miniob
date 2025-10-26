@@ -87,14 +87,41 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
-  // create filter statement in `where` statement
+  // 绑定 WHERE 条件表达式
+  vector<unique_ptr<Expression>> bound_conditions;
+  for (unique_ptr<Expression> &condition : select_sql.conditions) {
+    vector<unique_ptr<Expression>> bound_condition_list;
+    RC rc = expression_binder.bind_expression(condition, bound_condition_list);
+    if (OB_FAIL(rc)) {
+      LOG_INFO("bind where condition failed. rc=%s", strrc(rc));
+      return rc;
+    }
+    if (bound_condition_list.size() == 1) {
+      bound_conditions.emplace_back(std::move(bound_condition_list[0]));
+    }
+  }
+
+  // 如果有多个条件，组合成 ConjunctionExpr
+  unique_ptr<Expression> final_condition = nullptr;
+  if (bound_conditions.size() == 1) {
+    final_condition = std::move(bound_conditions[0]);
+  } else if (bound_conditions.size() > 1) {
+    final_condition = make_unique<ConjunctionExpr>(ConjunctionExpr::Type::AND, bound_conditions);
+  }
+
+  // create filter statement in `where` statement  
   FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::create(db,
-      default_table,
-      &table_map,
-      select_sql.conditions.data(),
-      static_cast<int>(select_sql.conditions.size()),
-      filter_stmt);
+  RC          rc          = RC::SUCCESS;
+  
+  if (final_condition) {
+    vector<unique_ptr<Expression>> condition_list;
+    condition_list.emplace_back(std::move(final_condition));
+    rc = FilterStmt::create(db, condition_list, filter_stmt);
+  } else {
+    rc = FilterStmt::create(db, default_table, &table_map, 
+        static_cast<const ConditionSqlNode *>(nullptr), 0, filter_stmt);
+  }
+  
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
