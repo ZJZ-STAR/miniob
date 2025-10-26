@@ -691,6 +691,15 @@ condition:
       delete $1;
       delete $3;
     }
+    | expression comp_op expression
+    {
+      $$ = new ConditionSqlNode;
+      $$->left_expr = $1;
+      $$->right_expr = $3;
+      $$->comp = $2;
+      $$->left_is_attr = 0;
+      $$->right_is_attr = 0;
+    }
     ;
 
 comp_op:

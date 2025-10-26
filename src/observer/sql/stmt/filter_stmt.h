@@ -77,6 +77,7 @@ public:
 
 public:
   const vector<FilterUnit *> &filter_units() const { return filter_units_; }
+  const vector<unique_ptr<Expression>> &filter_conditions() const { return filter_conditions_; }
 
 public:
   static RC create(Db *db, Table *default_table, unordered_map<string, Table *> *tables,
@@ -87,4 +88,5 @@ public:
 
 private:
   vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系
+  vector<unique_ptr<Expression>> filter_conditions_;  // 表达式形式的过滤条件
 };

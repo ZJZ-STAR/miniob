@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/sys/rc.h"
+#include "sql/expr/expression.h"
+#include "sql/parser/expression_binder.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
@@ -34,16 +36,62 @@ RC FilterStmt::create(Db *db, Table *default_table, unordered_map<string, Table 
   stmt  = nullptr;
 
   FilterStmt *tmp_stmt = new FilterStmt();
-  for (int i = 0; i < condition_num; i++) {
-    FilterUnit *filter_unit = nullptr;
-
-    rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
-    if (rc != RC::SUCCESS) {
-      delete tmp_stmt;
-      LOG_WARN("failed to create filter unit. condition index=%d", i);
-      return rc;
+  
+  // 创建表达式绑定器
+  BinderContext binder_context;
+  binder_context.add_table(default_table);
+  if (tables != nullptr) {
+    for (auto &iter : *tables) {
+      binder_context.add_table(iter.second);
     }
-    tmp_stmt->filter_units_.push_back(filter_unit);
+  }
+  ExpressionBinder expression_binder(binder_context);
+  
+  for (int i = 0; i < condition_num; i++) {
+    // 如果条件包含表达式，进行绑定并添加到filter_conditions_
+    if (conditions[i].left_expr != nullptr || conditions[i].right_expr != nullptr) {
+      unique_ptr<Expression> left_expr(conditions[i].left_expr);
+      unique_ptr<Expression> right_expr(conditions[i].right_expr);
+      
+      // 绑定左表达式
+      vector<unique_ptr<Expression>> bound_left_list;
+      rc = expression_binder.bind_expression(left_expr, bound_left_list);
+      if (rc != RC::SUCCESS || bound_left_list.size() != 1) {
+        delete tmp_stmt;
+        LOG_WARN("failed to bind left expression. condition index=%d", i);
+        return rc != RC::SUCCESS ? rc : RC::INTERNAL;
+      }
+      
+      // 绑定右表达式
+      vector<unique_ptr<Expression>> bound_right_list;
+      rc = expression_binder.bind_expression(right_expr, bound_right_list);
+      if (rc != RC::SUCCESS || bound_right_list.size() != 1) {
+        delete tmp_stmt;
+        LOG_WARN("failed to bind right expression. condition index=%d", i);
+        return rc != RC::SUCCESS ? rc : RC::INTERNAL;
+      }
+      
+      // 创建比较表达式
+      unique_ptr<Expression> comparison_expr(new ComparisonExpr(
+        conditions[i].comp,
+        std::move(bound_left_list[0]),
+        std::move(bound_right_list[0])
+      ));
+      
+      tmp_stmt->filter_conditions_.push_back(std::move(comparison_expr));
+    } else {
+      // 使用旧的FilterUnit方式
+      FilterUnit *filter_unit = nullptr;
+      rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
+      if (rc != RC::SUCCESS) {
+        delete tmp_stmt;
+        LOG_WARN("failed to create filter unit. condition index=%d", i);
+        return rc;
+      }
+      if (filter_unit != nullptr) {
+        tmp_stmt->filter_units_.push_back(filter_unit);
+      }
+    }
   }
 
   stmt = tmp_stmt;
@@ -87,6 +135,12 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, unordered_map<st
   if (comp < EQUAL_TO || comp >= NO_OP) {
     LOG_WARN("invalid compare operator : %d", comp);
     return RC::INVALID_ARGUMENT;
+  }
+
+  // 如果条件包含表达式，则不创建FilterUnit（由调用者处理）
+  if (condition.left_expr != nullptr || condition.right_expr != nullptr) {
+    filter_unit = nullptr;
+    return RC::SUCCESS;
   }
 
   filter_unit = new FilterUnit;
