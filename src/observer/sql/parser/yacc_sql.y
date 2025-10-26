@@ -649,7 +649,7 @@ where_condition_list:
     ;
 where_condition:
     expression comp_op expression {
-      ComparisonExpr *comp_expr = new ComparisonExpr($2, $1, $3);
+      ComparisonExpr *comp_expr = new ComparisonExpr($2, unique_ptr<Expression>($1), unique_ptr<Expression>($3));
       comp_expr->set_name(token_name(sql_string, &@$));
       $$ = comp_expr;
     }
