@@ -66,9 +66,24 @@ int IntegerType::compare(const Value &left, const Value &right) const
 int IntegerType::compare(const Column &left, const Column &right, int left_idx, int right_idx) const
 {
   ASSERT(left.attr_type() == AttrType::INTS, "left type is not integer");
-  ASSERT(right.attr_type() == AttrType::INTS, "right type is not integer");
-  return common::compare_int((void *)&((int*)left.data())[left_idx],
-      (void *)&((int*)right.data())[right_idx]);
+  
+  // 如果类型不同，返回错误标志（理论上不应该到这里，应该走逐行比较路径）
+  if (right.attr_type() != AttrType::INTS && right.attr_type() != AttrType::FLOATS) {
+    LOG_WARN("IntegerType::compare(Column) called with incompatible right type: %s", 
+             attr_type_to_string(right.attr_type()));
+    return INT32_MAX;
+  }
+  
+  // 处理 INTS 和 FLOATS
+  if (right.attr_type() == AttrType::INTS) {
+    return common::compare_int((void *)&((int*)left.data())[left_idx],
+        (void *)&((int*)right.data())[right_idx]);
+  } else {
+    // right is FLOATS
+    float left_val = (float)((int*)left.data())[left_idx];
+    float right_val = ((float*)right.data())[right_idx];
+    return common::compare_float((void *)&left_val, (void *)&right_val);
+  }
 }
 
 RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const

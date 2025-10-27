@@ -47,7 +47,14 @@ int DateType::compare(const Value &left, const Value &right) const
 int DateType::compare(const Column &left, const Column &right, int left_idx, int right_idx) const
 {
   ASSERT(left.attr_type() == AttrType::DATES, "left type is not date");
-  ASSERT(right.attr_type() == AttrType::DATES, "right type is not date");
+  
+  // 如果类型不同，返回错误标志
+  if (right.attr_type() != AttrType::DATES) {
+    LOG_WARN("DateType::compare(Column) called with incompatible right type: %s", 
+             attr_type_to_string(right.attr_type()));
+    return INT32_MAX;
+  }
+  
   return common::compare_int((void *)&((int*)left.data())[left_idx],
       (void *)&((int*)right.data())[right_idx]);
 }
