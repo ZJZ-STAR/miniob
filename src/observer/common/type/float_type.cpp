@@ -71,9 +71,24 @@ int FloatType::compare(const Value &left, const Value &right) const
 int FloatType::compare(const Column &left, const Column &right, int left_idx, int right_idx) const
 {
   ASSERT(left.attr_type() == AttrType::FLOATS, "left type is not float");
-  ASSERT(right.attr_type() == AttrType::FLOATS, "right type is not float");
-  return common::compare_float((void *)&((float*)left.data())[left_idx],
-      (void *)&((float*)right.data())[right_idx]);
+  
+  // 如果类型不同，返回错误标志（理论上不应该到这里，应该走逐行比较路径）
+  if (right.attr_type() != AttrType::FLOATS && right.attr_type() != AttrType::INTS) {
+    LOG_WARN("FloatType::compare(Column) called with incompatible right type: %s", 
+             attr_type_to_string(right.attr_type()));
+    return INT32_MAX;
+  }
+  
+  // 处理 FLOATS 和 INTS
+  if (right.attr_type() == AttrType::FLOATS) {
+    return common::compare_float((void *)&((float*)left.data())[left_idx],
+        (void *)&((float*)right.data())[right_idx]);
+  } else {
+    // right is INTS
+    float left_val = ((float*)left.data())[left_idx];
+    float right_val = (float)((int*)right.data())[right_idx];
+    return common::compare_float((void *)&left_val, (void *)&right_val);
+  }
 }
 
 RC FloatType::add(const Value &left, const Value &right, Value &result) const
