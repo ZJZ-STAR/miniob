@@ -112,6 +112,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         FIELDS
         TERMINATED
         ENCLOSED
+        INNER
+        JOIN
         EQ
         LT
         GT
@@ -135,6 +137,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   vector<RelAttrSqlNode> *                   rel_attr_list;
   vector<string> *                           relation_list;
   vector<string> *                           key_list;
+  JoinSqlNode *                              join_node;
+  vector<JoinSqlNode> *                      join_list;
   char *                                     cstring;
   int                                        number;
   float                                      floats;
@@ -151,6 +155,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 // %destructor { delete $$; } <rel_attr_list>
 %destructor { delete $$; } <relation_list>
 %destructor { delete $$; } <key_list>
+%destructor { delete $$; } <join_node>
+%destructor { delete $$; } <join_list>
 
 %token <number> NUMBER
 %token <floats> FLOAT
@@ -175,6 +181,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <key_list>            primary_key
 %type <key_list>            attr_list
 %type <relation_list>       rel_list
+%type <join_node>           join_clause
+%type <join_list>           join_list
 %type <expression>          expression
 %type <expression>          aggregate_expression
 %type <expression_list>     expression_list
@@ -490,7 +498,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by
+    SELECT expression_list FROM relation join_list rel_list where group_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -498,19 +506,31 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
 
-      if ($4 != nullptr) {
-        $$->selection.relations.swap(*$4);
-        delete $4;
-      }
+      // 添加第一个表
+      $$->selection.relations.push_back($4);
 
+      // 添加 JOIN 表
       if ($5 != nullptr) {
-        $$->selection.conditions.swap(*$5);
+        $$->selection.joins.swap(*$5);
         delete $5;
       }
 
+      // 添加逗号分隔的表（隐式内连接）
       if ($6 != nullptr) {
-        $$->selection.group_by.swap(*$6);
+        for (const string &rel : *$6) {
+          $$->selection.relations.push_back(rel);
+        }
         delete $6;
+      }
+
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
+      }
+
+      if ($8 != nullptr) {
+        $$->selection.group_by.swap(*$8);
+        delete $8;
       }
     }
     ;
@@ -602,18 +622,56 @@ relation:
     }
     ;
 rel_list:
-    relation {
-      $$ = new vector<string>();
-      $$->push_back($1);
+    /* empty */
+    {
+      $$ = nullptr;
     }
-    | relation COMMA rel_list {
+    | COMMA relation {
+      $$ = new vector<string>();
+      $$->push_back($2);
+    }
+    | COMMA relation rel_list {
       if ($3 != nullptr) {
         $$ = $3;
       } else {
         $$ = new vector<string>;
       }
+      $$->insert($$->begin(), $2);
+    }
+    ;
 
-      $$->insert($$->begin(), $1);
+join_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | join_clause join_list {
+      if ($2 != nullptr) {
+        $$ = $2;
+      } else {
+        $$ = new vector<JoinSqlNode>;
+      }
+      $$->insert($$->begin(), *$1);
+      delete $1;
+    }
+    ;
+
+join_clause:
+    INNER JOIN relation ON condition_list {
+      $$ = new JoinSqlNode;
+      $$->relation_name = $3;
+      if ($5 != nullptr) {
+        $$->conditions.swap(*$5);
+        delete $5;
+      }
+    }
+    | JOIN relation ON condition_list {
+      $$ = new JoinSqlNode;
+      $$->relation_name = $2;
+      if ($4 != nullptr) {
+        $$->conditions.swap(*$4);
+        delete $4;
+      }
     }
     ;
 

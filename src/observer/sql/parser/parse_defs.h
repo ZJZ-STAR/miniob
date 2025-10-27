@@ -80,6 +80,17 @@ struct ConditionSqlNode
 };
 
 /**
+ * @brief 描述一个 JOIN 操作
+ * @ingroup SQLParser
+ * @details 描述 INNER JOIN 操作，包括要连接的表名和 ON 条件
+ */
+struct JoinSqlNode
+{
+  string                   relation_name;  ///< 要连接的表名
+  vector<ConditionSqlNode> conditions;     ///< JOIN ON 条件，使用AND串联起来多个条件
+};
+
+/**
  * @brief 描述一个select语句
  * @ingroup SQLParser
  * @details 一个正常的select语句描述起来比这个要复杂很多，这里做了简化。
@@ -93,7 +104,8 @@ struct ConditionSqlNode
 struct SelectSqlNode
 {
   vector<unique_ptr<Expression>> expressions;  ///< 查询的表达式
-  vector<string>                 relations;    ///< 查询的表
+  vector<string>                 relations;    ///< 查询的表（第一个表 + 通过逗号分隔的表）
+  vector<JoinSqlNode>            joins;        ///< INNER JOIN 列表
   vector<ConditionSqlNode>       conditions;   ///< 查询条件，使用AND串联起来多个条件
   vector<unique_ptr<Expression>> group_by;     ///< group by clause
 };
