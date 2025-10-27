@@ -61,7 +61,9 @@ public:
 private:
   ConDesc  left_;
   ConDesc  right_;
-  AttrType attr_type_ = AttrType::UNDEFINED;
+  AttrType attr_type_ = AttrType::UNDEFINED;  // 保留用于兼容性
+  AttrType left_attr_type_ = AttrType::UNDEFINED;   // 左侧实际类型
+  AttrType right_attr_type_ = AttrType::UNDEFINED;  // 右侧实际类型
   CompOp   comp_op_   = NO_OP;
 };
 

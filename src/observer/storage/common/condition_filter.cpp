@@ -110,11 +110,32 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
   //  }
   // NOTE：这里没有实现不同类型的数据比较，比如整数跟浮点数之间的对比
   // 但是选手们还是要实现。这个功能在预选赛中会出现
-  if (type_left != type_right) {
+  
+  // 允许某些类型之间的比较（字符串-整数、字符串-浮点数、整数-浮点数等）
+  bool types_compatible = false;
+  if (type_left == type_right) {
+    types_compatible = true;
+  } else if ((type_left == AttrType::CHARS && (type_right == AttrType::INTS || type_right == AttrType::FLOATS)) ||
+             (type_right == AttrType::CHARS && (type_left == AttrType::INTS || type_left == AttrType::FLOATS))) {
+    // 字符串与数字之间可以比较
+    types_compatible = true;
+  } else if ((type_left == AttrType::INTS && type_right == AttrType::FLOATS) ||
+             (type_left == AttrType::FLOATS && type_right == AttrType::INTS)) {
+    // 整数与浮点数之间可以比较
+    types_compatible = true;
+  }
+  
+  if (!types_compatible) {
     return RC::SCHEMA_FIELD_TYPE_MISMATCH;
   }
 
-  return init(left, right, type_left, condition.comp);
+  // 保存左右两侧的实际类型
+  RC rc = init(left, right, type_left, condition.comp);
+  if (rc == RC::SUCCESS) {
+    left_attr_type_ = type_left;
+    right_attr_type_ = type_right;
+  }
+  return rc;
 }
 
 bool DefaultConditionFilter::filter(const Record &rec) const
@@ -123,14 +144,18 @@ bool DefaultConditionFilter::filter(const Record &rec) const
   Value right_value;
 
   if (left_.is_attr) {  // value
-    left_value.set_type(attr_type_);
+    // 使用左侧的实际类型（如果已设置），否则使用 attr_type_
+    AttrType left_type = (left_attr_type_ != AttrType::UNDEFINED) ? left_attr_type_ : attr_type_;
+    left_value.set_type(left_type);
     left_value.set_data(rec.data() + left_.attr_offset, left_.attr_length);
   } else {
     left_value.set_value(left_.value);
   }
 
   if (right_.is_attr) {
-    right_value.set_type(attr_type_);
+    // 使用右侧的实际类型（如果已设置），否则使用 attr_type_
+    AttrType right_type = (right_attr_type_ != AttrType::UNDEFINED) ? right_attr_type_ : attr_type_;
+    right_value.set_type(right_type);
     right_value.set_data(rec.data() + right_.attr_offset, right_.attr_length);
   } else {
     right_value.set_value(right_.value);

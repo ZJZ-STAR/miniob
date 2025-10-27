@@ -15,9 +15,54 @@ See the Mulan PSL v2 for more details. */
 
 int CharType::compare(const Value &left, const Value &right) const
 {
-  ASSERT(left.attr_type() == AttrType::CHARS && right.attr_type() == AttrType::CHARS, "invalid type");
-  return common::compare_string(
-      (void *)left.value_.pointer_value_, left.length_, (void *)right.value_.pointer_value_, right.length_);
+  ASSERT(left.attr_type() == AttrType::CHARS, "left type is not char");
+  
+  // 字符串与字符串比较
+  if (right.attr_type() == AttrType::CHARS) {
+    return common::compare_string(
+        (void *)left.value_.pointer_value_, left.length_, (void *)right.value_.pointer_value_, right.length_);
+  }
+  
+  // 字符串与数字比较：尝试将字符串转换为数字
+  if (right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS) {
+    // 尝试将字符串转换为数字进行比较
+    try {
+      const char *str = left.value_.pointer_value_;
+      if (str == nullptr) {
+        return INT32_MAX;  // 空字符串，无法比较
+      }
+      
+      // 尝试转换为浮点数进行比较
+      char *end_ptr;
+      double left_num = strtod(str, &end_ptr);
+      
+      // 检查是否成功转换（至少有一部分被转换）
+      if (end_ptr == str) {
+        // 完全无法转换，按字典序比较字符串表示
+        string right_str = right.to_string();
+        return common::compare_string(
+            (void *)str, left.length_, (void *)right_str.c_str(), right_str.length());
+      }
+      
+      double right_num = (right.attr_type() == AttrType::INTS) ? 
+                         (double)right.get_int() : (double)right.get_float();
+      
+      if (left_num < right_num) {
+        return -1;
+      } else if (left_num > right_num) {
+        return 1;
+      } else {
+        return 0;
+      }
+    } catch (...) {
+      // 转换失败，返回未实现
+      return INT32_MAX;
+    }
+  }
+  
+  // 其他类型不支持
+  LOG_WARN("unsupported comparison between char and type %d", right.attr_type());
+  return INT32_MAX;
 }
 
 RC CharType::set_value_from_str(Value &val, const string &data) const
