@@ -9,3 +9,14 @@ SELECT * FROM date_table WHERE u_date>'2020-1-20';
 exit
 
 
+
+
+
+
+
+
+
+
+
+
+

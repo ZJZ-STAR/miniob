@@ -37,3 +37,14 @@ INSERT INTO test_date VALUES (7, 'Grace', '1900-01-01', '2100-12-31'); -- 边界
 SELECT * FROM test_date ORDER BY id;
 
 
+
+
+
+
+
+
+
+
+
+
+

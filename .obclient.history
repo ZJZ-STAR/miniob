@@ -148,3 +148,69 @@ DROP TABLE test_data;
 SELECT * FROM test_data;
 ### 2025-10-21 16:42:51.552
 EXIT;
+### 2025-10-26 15:23:19.911
+SELECT 1+1;
+### 2025-10-26 15:25:19.581
+-- 测试表达式功能
+### 2025-10-26 15:27:12.127
+CREATE TABLE t(id int, c1 int); INSERT INTO t VALUES(1,5); SELECT * FROM t WHERE id+1=2;
+### 2025-10-27 06:30:35.924
+-- 测试 INNER JOIN 功能
+### 2025-10-27 06:42:43.028
+-- 测试字符串和整数比较的 JOIN 问题
+### 2025-10-27 06:57:14.963
+-- 测试简单查询
+### 2025-10-27 06:57:14.964
+SELECT * FROM join_table_1;
+### 2025-10-27 06:57:14.973
+SELECT * FROM join_table_2;
+### 2025-10-27 06:57:14.978
+-- 测试简单的等值 JOIN（应该成功）
+### 2025-10-27 06:57:14.990
+-- 测试带字符串和整数比较的 JOIN
+### 2025-10-27 06:57:14.995
+-- 测试隐式连接相同的条件
+### 2025-10-27 06:57:15.001
+-- 测试只有字符串和整数比较条件
+### 2025-10-27 06:57:15.002
+SELECT * FROM join_table_1, join_table_2 WHERE join_table_1.name < join_table_2.age;
+### 2025-10-27 06:58:23.343
+CREATE TABLE test_char(id int, name char);
+### 2025-10-27 06:58:23.424
+CREATE TABLE test_int(id int, val int);
+### 2025-10-27 06:58:23.451
+INSERT INTO test_char VALUES (1, '10');
+### 2025-10-27 06:58:23.461
+INSERT INTO test_char VALUES (2, '20');
+### 2025-10-27 06:58:23.468
+INSERT INTO test_int VALUES (1, 15);
+### 2025-10-27 06:58:23.477
+INSERT INTO test_int VALUES (2, 25);
+### 2025-10-27 06:58:23.483
+-- 测试字符串和整数比较（隐式连接）
+### 2025-10-27 06:58:23.484
+SELECT * FROM test_char, test_int WHERE test_char.name < test_int.val;
+### 2025-10-27 07:07:55.573
+CREATE TABLE join_table_2(id int, age int);
+### 2025-10-27 07:07:55.577
+INSERT INTO join_table_1 VALUES (4, '16a');
+### 2025-10-27 07:07:55.589
+INSERT INTO join_table_2 VALUES (4, 46);
+### 2025-10-27 07:07:55.597
+-- Test 1: Simple INNER JOIN (should work)
+### 2025-10-27 07:07:55.598
+SELECT * FROM join_table_1 INNER JOIN join_table_2 ON join_table_1.id = join_table_2.id;
+### 2025-10-27 07:07:55.614
+-- Test 2: INNER JOIN with string-int comparison (the problem case)
+### 2025-10-27 07:07:55.615
+SELECT * FROM join_table_1 INNER JOIN join_table_2 ON join_table_1.name < join_table_2.age AND join_table_1.id = join_table_2.id;
+### 2025-10-27 07:07:55.621
+-- Test 3: Implicit join with same condition (for comparison)
+### 2025-10-27 07:07:55.621
+SELECT * FROM join_table_1, join_table_2 WHERE join_table_1.name < join_table_2.age AND join_table_1.id = join_table_2.id;
+### 2025-10-27 07:07:55.627
+EXIT
+### 2025-10-27 07:11:28.802
+CREATE TABLE join_table_1(id int, name char);
+### 2025-10-27 07:17:24.883
+CREATE TABLE t1(id int, name char);

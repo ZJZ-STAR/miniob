@@ -6,3 +6,14 @@ SELECT * FROM t WHERE d > '2020-1-20';
 exit
 
 
+
+
+
+
+
+
+
+
+
+
+
