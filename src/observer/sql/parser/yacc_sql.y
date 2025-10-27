@@ -533,6 +533,41 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $8;
       }
     }
+    | SELECT expression_list FROM relation rel_list join_list where group_by
+    {
+      $$ = new ParsedSqlNode(SCF_SELECT);
+      if ($2 != nullptr) {
+        $$->selection.expressions.swap(*$2);
+        delete $2;
+      }
+
+      // 添加第一个表
+      $$->selection.relations.push_back($4);
+
+      // 添加逗号分隔的表（隐式内连接）
+      if ($5 != nullptr) {
+        for (const string &rel : *$5) {
+          $$->selection.relations.push_back(rel);
+        }
+        delete $5;
+      }
+
+      // 添加 JOIN 表
+      if ($6 != nullptr) {
+        $$->selection.joins.swap(*$6);
+        delete $6;
+      }
+
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
+      }
+
+      if ($8 != nullptr) {
+        $$->selection.group_by.swap(*$8);
+        delete $8;
+      }
+    }
     ;
 calc_stmt:
     CALC expression_list
