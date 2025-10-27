@@ -79,6 +79,12 @@ RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
     result.set_float(float_value);
     return RC::SUCCESS;
   }
+  case AttrType::CHARS: {
+    // 将整数转换为字符串
+    string str_value = std::to_string(val.get_int());
+    result.set_string(str_value.c_str());
+    return RC::SUCCESS;
+  }
   default:
     LOG_WARN("unsupported type %d", type);
     return RC::SCHEMA_FIELD_TYPE_MISMATCH;

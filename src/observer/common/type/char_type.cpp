@@ -83,6 +83,16 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       result.set_value(val);
       return RC::SUCCESS;
     }
+    case AttrType::INTS: {
+      // 将字符串转换为整数
+      result.set_type(AttrType::INTS);
+      return DataType::type_instance(AttrType::INTS)->set_value_from_str(result, val.get_string());
+    }
+    case AttrType::FLOATS: {
+      // 将字符串转换为浮点数
+      result.set_type(AttrType::FLOATS);
+      return DataType::type_instance(AttrType::FLOATS)->set_value_from_str(result, val.get_string());
+    }
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -95,6 +105,9 @@ int CharType::cast_cost(AttrType type)
   }
   if (type == AttrType::DATES) {
     return 1;  // 支持从 CHARS 转换到 DATES，成本为 1
+  }
+  if (type == AttrType::INTS || type == AttrType::FLOATS) {
+    return 2;  // 支持从 CHARS 转换到数值类型，成本为 2（可能失败）
   }
   return INT32_MAX;
 }

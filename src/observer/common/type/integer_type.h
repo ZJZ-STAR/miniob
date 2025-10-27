@@ -38,6 +38,8 @@ public:
       return 0;
     } else if (type == AttrType::FLOATS) {
       return 1;
+    } else if (type == AttrType::CHARS) {
+      return 2;  // 支持从 INTS 转换到 CHARS，成本为 2
     }
     return INT32_MAX;
   }
