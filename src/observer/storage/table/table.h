@@ -62,6 +62,14 @@ public:
       span<const AttrInfoSqlNode> attributes, const vector<string> &primary_keys, StorageFormat storage_format,
       StorageEngine storage_engine);
 
+
+  /**
+   * @brief 删除一个表
+   *
+   * @param path 表路径
+   * @return RC
+   */
+  RC drop(const char *path);
   /**
    * 打开一个表
    * @param meta_file 保存表元数据的文件完整路径

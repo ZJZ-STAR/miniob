@@ -125,6 +125,45 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   return rc;
 }
 
+RC Table::drop(const char *path)
+{
+  // 1. 删除元数据文件
+  if (::remove(path) < 0) {
+    LOG_ERROR("Failed to remove table meta file. file name=%s, errmsg=%s", path, strerror(errno));
+    return RC::INTERNAL;
+  }
+
+  // 2. 清理引擎（关闭数据文件、清理索引等）
+  engine_.reset();
+
+  // 3. 清理 lob handler
+  if (lob_handler_ != nullptr) {
+    delete lob_handler_;
+    lob_handler_ = nullptr;
+  }
+
+  // 4. 删除数据文件
+  string data_file = table_data_file(db_->path().c_str(), table_meta_.name());
+  ::remove(data_file.c_str());
+
+  // 5. 删除索引文件
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; i++) {
+    const IndexMeta *index_meta = table_meta_.index(i);
+    if (index_meta == nullptr) {
+      continue;
+    }
+    string index_file = table_index_file(db_->path().c_str(), table_meta_.name(), index_meta->name());
+    ::remove(index_file.c_str());
+  }
+
+  // 6. 删除 LOB 文件
+  string lob_file = table_lob_file(db_->path().c_str(), table_meta_.name());
+  ::remove(lob_file.c_str());
+
+  return RC::SUCCESS;
+}
+
 RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 {
   // 加载元数据文件
