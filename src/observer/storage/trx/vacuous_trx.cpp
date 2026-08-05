@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "storage/trx/vacuous_trx.h"
+#include "storage/table/table.h"
 
 RC VacuousTrxKit::init() { return RC::SUCCESS; }
 
@@ -33,6 +34,11 @@ LogReplayer *VacuousTrxKit::create_log_replayer(Db &, LogHandler &) { return new
 RC VacuousTrx::insert_record(Table *table, Record &record) { return table->insert_record(record); }
 
 RC VacuousTrx::delete_record(Table *table, Record &record) { return table->delete_record(record); }
+
+RC VacuousTrx::update_record(Table *table, Record &old_record, Record &new_record)
+{
+  return table->update_record_with_trx(old_record, new_record, this);
+}
 
 RC VacuousTrx::visit_record(Table *table, Record &record, ReadWriteMode) { return RC::SUCCESS; }
 

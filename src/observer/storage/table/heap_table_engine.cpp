@@ -15,6 +15,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/meta_util.h"
 #include "storage/db/db.h"
 
+#include <cstring>
+
 
 HeapTableEngine::~HeapTableEngine()
 {
@@ -101,6 +103,106 @@ RC HeapTableEngine::delete_record(const Record &record)
   }
   rc = record_handler_->delete_record(&record.rid());
   return rc;
+}
+
+RC HeapTableEngine::update_record_with_trx(const Record &old_record, const Record &new_record, Trx *trx)
+{
+  (void)trx;
+
+  if (record_handler_ == nullptr || old_record.data() == nullptr || new_record.data() == nullptr ||
+      old_record.len() != new_record.len() || old_record.rid() != new_record.rid()) {
+    LOG_WARN("invalid arguments for updating a heap record");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  // An index key only depends on its indexed field. Updating the other fields
+  // does not require touching that index, which also avoids needless index
+  // churn for ordinary UPDATE statements.
+  vector<Index *> changed_indexes;
+  for (Index *index : indexes_) {
+    const FieldMeta *field = table_meta_->field(index->index_meta().field());
+    if (field == nullptr || field->offset() < 0 || field->len() < 0 ||
+        field->offset() + field->len() > old_record.len()) {
+      LOG_WARN("invalid indexed field while updating table=%s, index=%s",
+          table_meta_->name(), index->index_meta().name());
+      return RC::INTERNAL;
+    }
+
+    if (memcmp(old_record.data() + field->offset(), new_record.data() + field->offset(), field->len()) != 0) {
+      changed_indexes.push_back(index);
+    }
+  }
+
+  // Keep index and record changes consistent as far as this storage engine can
+  // do without a real transaction. All old index entries are removed first;
+  // every failure path below restores the entries/data already changed.
+  vector<Index *> deleted_indexes;
+  RC rc = RC::SUCCESS;
+  for (Index *index : changed_indexes) {
+    rc = index->delete_entry(old_record.data(), &old_record.rid());
+    if (rc != RC::SUCCESS) {
+      for (Index *deleted_index : deleted_indexes) {
+        RC restore_rc = deleted_index->insert_entry(old_record.data(), &old_record.rid());
+        if (restore_rc != RC::SUCCESS) {
+          LOG_ERROR("failed to restore old index entry after update failure. table=%s, index=%s, rc=%s",
+              table_meta_->name(), deleted_index->index_meta().name(), strrc(restore_rc));
+        }
+      }
+      return rc;
+    }
+    deleted_indexes.push_back(index);
+  }
+
+  rc = record_handler_->visit_record(old_record.rid(), [&](Record &record) {
+    memcpy(record.data(), new_record.data(), new_record.len());
+    return true;
+  });
+  if (rc != RC::SUCCESS) {
+    for (Index *deleted_index : deleted_indexes) {
+      RC restore_rc = deleted_index->insert_entry(old_record.data(), &old_record.rid());
+      if (restore_rc != RC::SUCCESS) {
+        LOG_ERROR("failed to restore old index entry after record update failure. table=%s, index=%s, rc=%s",
+            table_meta_->name(), deleted_index->index_meta().name(), strrc(restore_rc));
+      }
+    }
+    return rc;
+  }
+
+  vector<Index *> inserted_indexes;
+  for (Index *index : changed_indexes) {
+    rc = index->insert_entry(new_record.data(), &new_record.rid());
+    if (rc != RC::SUCCESS) {
+      // Remove any new entries that were inserted before the failure.
+      for (Index *inserted_index : inserted_indexes) {
+        RC rollback_rc = inserted_index->delete_entry(new_record.data(), &new_record.rid());
+        if (rollback_rc != RC::SUCCESS && rollback_rc != RC::RECORD_INVALID_KEY) {
+          LOG_ERROR("failed to remove new index entry during update rollback. table=%s, index=%s, rc=%s",
+              table_meta_->name(), inserted_index->index_meta().name(), strrc(rollback_rc));
+        }
+      }
+
+      // Restore the original row and all of its index entries.
+      RC restore_record_rc = record_handler_->visit_record(old_record.rid(), [&](Record &record) {
+        memcpy(record.data(), old_record.data(), old_record.len());
+        return true;
+      });
+      if (restore_record_rc != RC::SUCCESS) {
+        LOG_ERROR("failed to restore old record during update rollback. table=%s, rid=%s, rc=%s",
+            table_meta_->name(), old_record.rid().to_string().c_str(), strrc(restore_record_rc));
+      }
+      for (Index *deleted_index : deleted_indexes) {
+        RC restore_rc = deleted_index->insert_entry(old_record.data(), &old_record.rid());
+        if (restore_rc != RC::SUCCESS) {
+          LOG_ERROR("failed to restore old index entry during update rollback. table=%s, index=%s, rc=%s",
+              table_meta_->name(), deleted_index->index_meta().name(), strrc(restore_rc));
+        }
+      }
+      return rc;
+    }
+    inserted_indexes.push_back(index);
+  }
+
+  return RC::SUCCESS;
 }
 
 RC HeapTableEngine::get_record_scanner(RecordScanner *&scanner, Trx *trx, ReadWriteMode mode)
